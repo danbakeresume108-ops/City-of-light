@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:," />
+  <title>City of Light</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --night: #071021;
+      --deep: #0b1730;
+      --moss: #13264a;
+      --pine: #23487b;
+      --fern: #65b7d0;
+      --gold: #f2c14e;
+      --amber: #dd8e38;
+      --paper: #fff3c8;
+      --ink: #091329;
+      --mist: #bdc9e5;
+      --panel: rgba(7, 15, 33, .94);
+      --panel-soft: rgba(10, 22, 46, .86);
+      --line: rgba(242, 193, 78, .52);
+      --white-line: rgba(218, 228, 250, .18);
+      --shadow: 0 22px 64px rgba(0, 0, 0, .52);
+      --safe: #76d8bd;
+      --soon: #f2c14e;
+      --future: #9eaccb;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        color-scheme: light;
+        --night: #101b35;
+        --deep: #14264a;
+        --moss: #1d3764;
+        --pine: #315d92;
+        --fern: #75c2d4;
+        --gold: #ffd36a;
+        --amber: #e5963f;
+        --paper: #fff8db;
+        --ink: #0a1429;
+        --mist: #d2dcf1;
+        --panel: rgba(10, 20, 43, .94);
+        --panel-soft: rgba(14, 29, 58, .88);
+        --line: rgba(255, 211, 106, .54);
+        --white-line: rgba(226, 234, 252, .2);
+        --shadow: 0 22px 58px rgba(0, 0, 0, .42);
+        --safe: #83dfc3;
+        --soon: #ffd36a;
+        --future: #aebbd5;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      background: var(--night);
+      color: var(--paper);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+      overscroll-behavior: none;
+    }
+    button, a { font: inherit; -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+    .skip-link {
+      position: fixed; z-index: 100; left: 12px; top: 8px;
+      transform: translateY(-160%); padding: 9px 13px;
+      background: var(--paper); color: var(--ink); border-radius: 6px;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .map-app { position: relative; width: 100%; height: 100dvh; min-height: 520px; overflow: hidden; isolation: isolate; }
+    .map-app::before {
+      content: ""; position: absolute; inset: 0; z-index: -2;
+      background:
+        radial-gradient(ellipse at 50% 72%, rgba(242,193,78,.18), transparent 29%),
+        radial-gradient(circle at 20% 18%, rgba(74,114,189,.3), transparent 34%),
+        radial-gradient(circle at 82% 22%, rgba(152,83,144,.18), transparent 32%),
+        linear-gradient(180deg, #172957 0%, var(--night) 56%, #050a15 100%);
+    }
+    .map-app::after {
+      content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none;
+      background: linear-gradient(180deg, rgba(2,6,16,.08), transparent 36%, rgba(2,6,16,.22));
+      box-shadow: inset 0 0 120px rgba(0,0,0,.48);
+    }
+
+    .map-intro {
+      position: absolute; z-index: 20; top: max(16px, env(safe-area-inset-top)); left: 50%;
+      transform: translateX(-50%); width: min(540px, calc(100% - 176px)); padding: 10px 18px 14px;
+      text-align: center; background: linear-gradient(180deg, rgba(8,17,37,.84), rgba(8,17,37,.66));
+      border: 1px solid var(--line); border-top-color: rgba(255,236,174,.72); border-radius: 10px;
+      box-shadow: 0 16px 42px rgba(0,0,0,.36), 0 0 34px rgba(242,193,78,.1); backdrop-filter: blur(12px);
+    }
+    .kicker { margin: 0 0 2px; color: var(--gold); font-size: .65rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { margin: 0; color: var(--paper); font-family: Georgia, "Times New Roman", serif; font-weight: 500; font-size: clamp(1.7rem, 4vw, 2.45rem); line-height: 1; letter-spacing: -.025em; text-shadow: 0 0 22px rgba(242,193,78,.36); }
+    .intro-hint { margin: 6px auto 0; max-width: 460px; color: var(--mist); font-size: .76rem; }
+    .license-line { margin: 7px 0 0; color: var(--gold); font-size: .66rem; font-weight: 750; letter-spacing: .035em; }
+    .demo-start {
+      display: inline-flex; align-items: center; min-height: 36px; margin-top: 10px; padding: 0 15px;
+      border: 1px solid #ffe8a6; border-radius: 5px;
+      background: linear-gradient(180deg, #ffd971, var(--gold)); color: #151b2a; cursor: pointer; font-size: .73rem; font-weight: 900;
+      box-shadow: 0 0 24px rgba(242,193,78,.24);
+    }
+    .demo-start:hover { background: var(--paper); border-color: var(--paper); }
+
+    .map-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; }
+    .map-viewport.dragging { cursor: grabbing; }
+    .world {
+      position: absolute; left: 0; top: 0; width: 1680px; height: 1160px;
+      transform-origin: 0 0; will-change: transform; user-select: none;
+      background:
+        radial-gradient(ellipse at 50% 54%, rgba(242,193,78,.18) 0 12%, transparent 31%),
+        radial-gradient(ellipse at 76% 45%, rgba(47,100,169,.22), transparent 24%),
+        radial-gradient(ellipse at 22% 45%, rgba(52,84,151,.2), transparent 27%),
+        radial-gradient(circle at 65% 78%, rgba(133,73,142,.15), transparent 18%),
+        repeating-radial-gradient(ellipse at 50% 50%, transparent 0 82px, rgba(242,193,78,.075) 84px 85px, transparent 87px 134px);
+    }
+    .world::before {
+      content: ""; position: absolute; inset: 60px; border: 1px solid rgba(242,193,78,.2);
+      border-radius: 50%;
+      box-shadow: 0 0 0 52px rgba(242,193,78,.025), inset 0 0 120px rgba(2,8,24,.62), 0 0 70px rgba(242,193,78,.06);
+    }
+    .world::after {
+      content: ""; position: absolute; inset: 145px 105px 120px 125px;
+      border: 1px dashed rgba(242,193,78,.2);
+      border-radius: 50%; pointer-events: none;
+    }
+    .contour { position: absolute; border: 1px solid rgba(183,205,244,.09); border-radius: 50%; pointer-events: none; }
+    .c1 { width: 530px; height: 240px; left: 565px; top: 450px; transform: rotate(-7deg); }
+    .c2 { width: 720px; height: 360px; left: 470px; top: 390px; transform: rotate(5deg); }
+    .c3 { width: 980px; height: 560px; left: 345px; top: 290px; transform: rotate(-4deg); }
+
+    .paths { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .paths path { fill: none; stroke: rgba(242,193,78,.48); stroke-width: 3; stroke-dasharray: 2 13; stroke-linecap: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px rgba(242,193,78,.4)); }
+    .paths .branch { stroke: rgba(103,181,218,.26); stroke-width: 7; stroke-dasharray: none; filter: drop-shadow(0 0 7px rgba(67,145,211,.35)); }
+
+    .region {
+      position: absolute; width: 220px; min-height: 150px; padding: 0; overflow: visible;
+      border: 0; background: transparent; text-align: left; cursor: pointer;
+      filter: drop-shadow(0 18px 24px rgba(0,0,0,.56));
+    }
+    .region .picture {
+      display: block; position: relative; overflow: hidden; width: 100%; height: 122px;
+      border: 2px solid rgba(242,193,78,.62); border-radius: 10px;
+      background: #0b1730;
+      clip-path: none;
+      box-shadow: inset 0 0 22px rgba(255,222,135,.08), 0 0 20px rgba(242,193,78,.1);
+      transition: border-color .2s ease, filter .2s ease, box-shadow .2s ease;
+    }
+    .region img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; filter: saturate(1.03) contrast(1.06) brightness(.72); transition: filter .2s ease; }
+    .region:hover .picture, .region:focus-visible .picture { border-color: #ffe7a3; box-shadow: inset 0 0 22px rgba(255,222,135,.12), 0 0 32px rgba(242,193,78,.32); }
+    .region:hover img, .region:focus-visible img { filter: saturate(1.12) contrast(1.06) brightness(.96); }
+    .region .label {
+      position: relative; display: inline-flex; align-items: center; gap: 8px; max-width: calc(100% - 8px);
+      margin: -11px 0 0 12px; padding: 8px 11px 7px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.38), 0 0 18px rgba(242,193,78,.08); font-weight: 800; font-size: .82rem; letter-spacing: .01em;
+    }
+    .region .dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--future); box-shadow: 0 0 0 3px color-mix(in srgb, var(--future) 18%, transparent); }
+    .region[data-status="LIVE"] .dot { background: var(--safe); }
+    .region[data-status="SHIPS OCT 7"] .dot { background: var(--soon); }
+
+    .heart-region { width: 408px; min-height: 270px; z-index: 3; }
+    .heart-region .picture { height: 248px; border-width: 3px; border-color: #ffe4a0; border-radius: 14px 14px 30px 30px; box-shadow: 0 0 52px rgba(242,193,78,.3), inset 0 0 30px rgba(255,232,165,.1); }
+    .heart-region .label { margin-top: -18px; margin-left: 34px; font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; }
+    .heart-region img { filter: saturate(1.08) contrast(1.07) brightness(.88); }
+    .heart-marker {
+      position: absolute; z-index: 4; left: calc(50% - 11px); top: -13px; width: 23px; height: 23px;
+      background: #e56045; transform: rotate(45deg); border: 2px solid #ffe6bc; box-shadow: 0 0 0 7px rgba(229,96,69,.18), 0 0 22px rgba(239,201,108,.75);
+    }
+    .heart-marker::before, .heart-marker::after { content: ""; position: absolute; width: 21px; height: 21px; background: #e56045; border-radius: 50%; }
+    .heart-marker::before { left: -11px; top: 0; }
+    .heart-marker::after { left: 0; top: -11px; }
+    .heart-pin { position: absolute; z-index: 5; top: -55px; left: 50%; transform: translateX(-50%); padding: 6px 9px; border-radius: 999px; background: var(--paper); color: var(--ink); font-size: .67rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; box-shadow: 0 8px 20px rgba(0,0,0,.28); }
+    .heart-pin::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 20px; background: var(--paper); }
+
+    .r-heart { left: 636px; top: 446px; }
+    .r-comrade { left: 735px; top: 125px; }
+    .r-commune { left: 1128px; top: 265px; width: 248px; }
+    .r-devotional { left: 1290px; top: 570px; }
+    .r-long { left: 1100px; top: 878px; }
+    .r-books { left: 675px; top: 930px; }
+    .r-media { left: 275px; top: 830px; }
+    .r-path { left: 120px; top: 500px; width: 240px; }
+    .r-safe { left: 310px; top: 175px; }
+    .r-support { left: 1390px; top: 100px; width: 210px; }
+
+    .legend {
+      position: absolute; z-index: 20; top: max(14px, env(safe-area-inset-top)); right: 14px;
+      display: grid; gap: 7px; padding: 10px 11px; background: var(--panel-soft);
+      border: 1px solid var(--line); border-radius: 7px; backdrop-filter: blur(10px);
+      color: var(--mist); font-size: .66rem; font-weight: 750;
+    }
+    .legend span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .legend i { width: 7px; height: 7px; border-radius: 50%; background: var(--future); }
+    .legend .live i { background: var(--safe); }
+    .legend .ships i { background: var(--soon); }
+
+    .map-controls { position: absolute; z-index: 22; right: 14px; bottom: max(18px, env(safe-area-inset-bottom)); display: grid; gap: 7px; }
+    .map-control {
+      min-width: 46px; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 6px;
+      background: var(--panel); color: var(--paper); box-shadow: 0 8px 22px rgba(0,0,0,.25); cursor: pointer; font-weight: 900;
+    }
+    .map-control:hover { background: var(--moss); }
+    .map-control.fit { font-size: .69rem; letter-spacing: .05em; text-transform: uppercase; }
+
+    .region-list-toggle {
+      position: absolute; z-index: 22; left: 14px; bottom: max(18px, env(safe-area-inset-bottom));
+      min-height: 46px; padding: 0 15px; border: 1px solid var(--line); border-radius: 6px;
+      background: var(--panel); color: var(--paper); box-shadow: 0 8px 22px rgba(0,0,0,.25); cursor: pointer; font-size: .78rem; font-weight: 850;
+    }
+
+    .directory {
+      position: absolute; z-index: 35; left: 14px; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 54px);
+      width: min(310px, calc(100% - 92px)); max-height: min(55vh, 440px); overflow: auto;
+      padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: var(--shadow); backdrop-filter: blur(12px);
+    }
+    .directory[hidden] { display: none; }
+    .directory button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--white-line); background: transparent; color: var(--paper); text-align: left; cursor: pointer; font-size: .8rem; font-weight: 760; }
+    .directory button:last-child { border-bottom: 0; }
+    .directory small { color: var(--mist); font-size: .63rem; }
+
+    .scrim { position: absolute; z-index: 39; inset: 0; background: rgba(0,0,0,.44); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .scrim.open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: absolute; z-index: 40; left: 50%; bottom: 0; width: min(760px, 100%); max-height: min(82dvh, 760px); overflow: auto;
+      transform: translate(-50%, 105%); background: var(--panel); color: var(--paper); border: 1px solid var(--line); border-bottom: 0;
+      border-radius: 24px 24px 0 0; box-shadow: 0 -22px 70px rgba(0,0,0,.52); transition: transform .28s cubic-bezier(.2,.8,.2,1); overscroll-behavior: contain;
+    }
+    .sheet.open { transform: translate(-50%, 0); }
+    .sheet-grab { width: 46px; height: 4px; margin: 10px auto 4px; border-radius: 999px; background: var(--white-line); }
+    .sheet-close { position: sticky; z-index: 4; top: 10px; float: right; margin: 0 12px -48px 0; width: 42px; height: 42px; border: 1px solid var(--white-line); border-radius: 50%; background: var(--panel); color: var(--paper); cursor: pointer; font-size: 1.25rem; }
+    .sheet-hero { display: grid; grid-template-columns: minmax(220px, .86fr) 1.14fr; min-height: 260px; }
+    .sheet-image { width: 100%; height: 100%; min-height: 260px; object-fit: cover; filter: saturate(.92) contrast(1.04); }
+    .sheet-copy { padding: clamp(24px, 5vw, 44px); align-self: center; }
+    .sheet-meta { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+    .status-badge { display: inline-flex; align-items: center; min-height: 25px; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; color: var(--future); font-size: .61rem; font-weight: 900; letter-spacing: .1em; }
+    .status-badge.live { color: var(--safe); }
+    .status-badge.ships { color: var(--soon); }
+    .sheet h2 { margin: 0 48px 11px 0; font-family: Georgia, "Times New Roman", serif; font-weight: 600; font-size: clamp(2rem, 6vw, 3.5rem); line-height: .95; letter-spacing: -.035em; }
+    .sheet p { margin: 0; color: var(--mist); font-size: .94rem; }
+    .sheet-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+    .sheet-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 45px; padding: 0 15px; border-radius: 6px; background: var(--gold); color: #172117; text-decoration: none; font-size: .79rem; font-weight: 900; }
+    .sheet-actions a.secondary { background: transparent; color: var(--paper); border: 1px solid var(--white-line); }
+    .empty-link { display: inline-flex; min-height: 42px; align-items: center; color: var(--mist); font-size: .76rem; font-style: italic; }
+    .mission-quote { margin-top: 18px !important; padding-top: 17px; border-top: 1px solid var(--white-line); color: var(--paper) !important; font-family: Georgia, "Times New Roman", serif; font-size: 1.05rem !important; line-height: 1.46; }
+    .gallery-wrap { padding: 18px clamp(20px, 5vw, 40px) 30px; border-top: 1px solid var(--white-line); }
+    .gallery-wrap h3 { margin: 0 0 12px; font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--gold); }
+    .gallery { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+    .gallery img { width: 100%; aspect-ratio: 4/5; object-fit: cover; border: 1px solid var(--white-line); border-radius: 7px; background: var(--deep); }
+    .gallery img.landscape { aspect-ratio: 4/3; }
+
+    .gesture-note { position: absolute; z-index: 15; left: 50%; bottom: 23px; transform: translateX(-50%); color: var(--mist); font-size: .7rem; text-shadow: 0 1px 8px rgba(0,0,0,.8); pointer-events: none; opacity: .82; }
+
+    @media (max-width: 680px) {
+      .map-intro { left: 12px; transform: none; width: min(265px, calc(100% - 100px)); padding: 10px 12px 11px; text-align: left; }
+      .intro-hint { display: none; }
+      .demo-start { min-height: 34px; margin-top: 8px; }
+      .legend { padding: 8px; gap: 5px; }
+      .legend span { font-size: 0; gap: 0; }
+      .legend span::after { content: attr(data-short); font-size: .58rem; margin-left: 6px; }
+      .gesture-note { display: none; }
+      .sheet { max-height: 86dvh; }
+      .sheet-hero { grid-template-columns: 1fr; }
+      .sheet-image { min-height: 0; height: 220px; }
+      .sheet-copy { padding: 22px 20px 24px; }
+      .sheet h2 { font-size: 2rem; }
+      .gallery { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    }
+    @media (max-width: 390px) {
+      .map-intro { width: 220px; }
+      .map-intro .kicker { display: none; }
+      .map-intro h1 { font-size: 1.3rem; }
+      .legend { top: 12px; right: 10px; }
+      .gallery { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#map">Skip to map</a>
+  <main class="map-app" aria-label="Interactive project atlas">
+    <header class="map-intro">
+      <p class="kicker">City of Light · one connected front door</p>
+      <h1>Enter the City of Light</h1>
+      <p class="intro-hint">Follow the illuminated paths to the working projects, stories and ways to help build what comes next.</p>
+      <p class="license-line">Free Edition · Licensed CC BY-SA 4.0</p>
+      <button class="demo-start" id="demoStart" type="button">Enter the Heart</button>
+    </header>
+
+    <aside class="legend" aria-label="Project status legend">
+      <span class="live" data-short="Live"><i></i>Live now</span>
+      <span class="ships" data-short="Oct 7"><i></i>Ships Oct 7</span>
+      <span data-short="Soon"><i></i>Coming soon</span>
+    </aside>
+
+    <section class="map-viewport" id="map" tabindex="0" aria-label="Project map. Use arrow keys to pan and plus or minus to zoom.">
+      <div class="world" id="world">
+        <span class="contour c1"></span><span class="contour c2"></span><span class="contour c3"></span>
+        <svg class="paths" viewBox="0 0 1680 1160" aria-hidden="true">
+          <path class="branch" d="M840 580 C810 390 830 300 845 205 M840 580 C1050 520 1160 420 1245 345 M840 580 C1040 570 1220 620 1390 650 M840 580 C1010 700 1110 850 1210 940 M840 580 C840 750 805 840 785 980 M840 580 C640 685 495 790 380 880 M840 580 C625 570 465 555 240 575 M840 580 C675 420 560 310 420 240 M840 580 C1075 355 1285 220 1490 175"/>
+          <path d="M420 240 Q650 185 845 205 Q1060 150 1245 345 Q1390 430 1390 650 Q1360 820 1210 940 Q1015 1020 785 980 Q560 1035 380 880 Q220 750 240 575 Q260 360 420 240"/>
+        </svg>
+
+        <div aria-hidden="true" class="region heart-region r-heart" data-id="heart" data-status="LIVE" aria-label="Open City of Light">
+          <span class="heart-pin">You are here</span><span class="heart-marker" aria-hidden="true"></span>
+          <span class="picture"><img src="assets/06-comrade-relay-castle.jpg" alt="" draggable="false"></span>
+          <span class="label"><span class="dot"></span>City of Light</span>
+        </div>
+        <div aria-hidden="true" class="region r-comrade" data-id="comrade" data-status="SHIPS OCT 7" aria-label="Open COMRADE Relay">
+          <span class="picture"><img src="assets/07-comrade-relay-phone.jpg" alt="" draggable="false"></span>
+          <span class="label"><span class="dot"></span>COMRADE Relay</span>
+        </div>
+        <div aria-hidden="true" class="region r-commune" data-id="commune" data-status="COMING SOON" aria-label="Open The Commune">
+          <span class="picture"><img src="assets/09-llm-commune-network.jpg" alt="" draggable="false"></span>
+          <span class="label"><span class="dot"></span>The Commune</span>
+        </div>
+        <div aria-hidden="true" class="region r-devotional" data-id="devotional" data-status="LIVE" aria-label="Open Devotional Grove">
+          <span class="picture"><img src="assets/06-comrade-relay-castle.jpg" alt="" draggable="false" style="object-position:84% 44%"></span>
+          <span class="label"><span class="dot"></span>Devotional Grove</span>
+        </div>
+        <div aria-hidden="true" class="region r-long" data-id="long" data-status="COMING SOON" aria-label="Open The Long Ascent">
+          <span class="picture"><img src="assets/04-long-ascent-earn.jpg" alt="" draggable="false" style="object-position:center 24%"></span>
+          <span class="label"><span class="dot"></span>The Long Ascent</span>
+        </div>
+        <div aria-hidden="true" class="region r-books" data-id="books" data-status="LIVE" aria-label="Open Books and Earning">
+          <span class="picture"><img src="assets/01-study-sit-sweat-stretch-earn.jpg" alt="" draggable="false" style="object-position:center 22%"></span>
+          <span class="label"><span class="dot"></span>Books &amp; Earning</span>
+        </div>
+        <div aria-hidden="true" class="region r-media" data-id="media" data-status="LIVE" aria-label="Open Origin Video and Media">
+          <span class="picture"><img src="assets/03-youtube-media-earn.jpg" alt="" draggable="false" style="object-position:center 25%"></span>
+          <span class="label"><span class="dot"></span>Origin Video / Media</span>
+        </div>
+        <div aria-hidden="true" class="region r-path" data-id="path" data-status="LIVE" aria-label="Open Dan's Path">
+          <span class="picture"><img src="assets/10-dan-baker-skills-map.jpg" alt="" draggable="false"></span>
+          <span class="label"><span class="dot"></span>Dan’s Path</span>
+        </div>
+        <div aria-hidden="true" class="region r-safe" data-id="safe" data-status="COMING SOON" aria-label="Open Safe Passage">
+          <span class="picture"><img src="assets/16-safest-option-7.jpg" alt="" draggable="false" style="object-position:center 24%"></span>
+          <span class="label"><span class="dot"></span>Safe Passage</span>
+        </div>
+        <div aria-hidden="true" class="region r-support" data-id="support" data-status="LIVE" aria-label="Open Support">
+          <span class="picture"><img src="assets/05-investors-look-for.jpg" alt="" draggable="false" style="object-position:center 25%"></span>
+          <span class="label"><span class="dot"></span>Support</span>
+        </div>
+      </div>
+    </section>
+
+    <button class="region-list-toggle" id="directoryToggle" type="button" aria-expanded="false" aria-controls="directory">All places</button>
+    <nav class="directory" id="directory" aria-label="All map regions" hidden></nav>
+    <div class="gesture-note" aria-hidden="true">Drag the map · pinch or scroll to zoom</div>
+    <div class="map-controls" aria-label="Map controls">
+      <button class="map-control" id="zoomIn" type="button" aria-label="Zoom in">＋</button>
+      <button class="map-control" id="zoomOut" type="button" aria-label="Zoom out">−</button>
+      <button class="map-control fit" id="fitMap" type="button">Center</button>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+    <article class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-grab" aria-hidden="true"></div>
+      <button class="sheet-close" id="sheetClose" type="button" aria-label="Close details">×</button>
+      <div id="sheetContent"></div>
+    </article>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+      var WORLD_W = 1680, WORLD_H = 1160;
+      var viewport = document.getElementById('map');
+      var world = document.getElementById('world');
+      var sheet = document.getElementById('sheet');
+      var sheetContent = document.getElementById('sheetContent');
+      var sheetClose = document.getElementById('sheetClose');
+      var scrim = document.getElementById('scrim');
+      var directory = document.getElementById('directory');
+      var directoryToggle = document.getElementById('directoryToggle');
+      var lastFocus = null;
+      var state = { x: 0, y: 0, scale: .78 };
+      var pointers = new Map();
+      var panStart = null;
+      var pinchStart = null;
+
+      var regions = {
+        heart: {
+          title: 'City of Light', status: 'LIVE', image: '06-comrade-relay-castle.jpg',
+          desc: 'Today’s completed minimum viable product: one responsive web app and website that gathers the tools, practices, stories and publishing projects into a single, demonstrable front door.',
+          quote: '“Not as a soldier… as someone who saved people, saved lives, and made people’s lives better.” The guiding ideal is a peaceful, non-violent way out of poverty.',
+          links: [
+            ['Open the current app', 'https://muse.ai/s/relay-app-2-xwy61wuxxxuxqxoxa', false],
+            ['Open the publishing website', 'https://muse.ai/s/hub-app-kb61uezsuxb0', true]
+          ], gallery: ['06-comrade-relay-castle.jpg']
+        },
+        comrade: {
+          title: 'COMRADE Relay', status: 'SHIPS OCT 7', image: '07-comrade-relay-phone.jpg',
+          desc: 'Your team. In your pocket. A cooperative relay for assigning work, reviewing evidence and keeping the human in control. Version 0.3.3 is in build.',
+          links: [['Open the current relay app', 'https://muse.ai/s/relay-app-2-xwy61wuxxxuxqxoxa', false]],
+          gallery: ['07-comrade-relay-phone.jpg','02-comrade-relay-earn.jpg','08-comrade-workspace.jpg','11-dogfood-week.jpg','12-survival-infrastructure.jpg','13-human-stays-in-charge.jpg','14-money-mode-3am.jpg','15-comrade-relay-v02.jpg']
+        },
+        commune: {
+          title: 'The Commune', status: 'COMING SOON', image: '09-llm-commune-network.jpg',
+          desc: 'A shared workspace where different AI models contribute independent strengths, compare findings and return the decision to the human.',
+          links: [], gallery: ['09-llm-commune-network.jpg']
+        },
+        devotional: {
+          title: 'Devotional Grove', status: 'LIVE', image: '06-comrade-relay-castle.jpg',
+          desc: 'A quiet clearing for devotional practice: Merit Field, A Devotion of Peace, and a non-denominational Christian lane planting October 4.',
+          links: [
+            ['Enter Merit Field', 'https://muse.ai/s/relay-app-dh61uxhxuxocxyb', false],
+            ['Enter A Devotion of Peace', 'https://muse.ai/s/a-devotion-of-peace-lxl61xqdxhbuq7', true]
+          ], gallery: []
+        },
+        long: {
+          title: 'The Long Ascent', status: 'COMING SOON', image: '04-long-ascent-earn.jpg',
+          desc: 'A webcomic in development—one of the stories growing beyond the forest’s edge.',
+          links: [], gallery: ['04-long-ascent-earn.jpg']
+        },
+        books: {
+          title: 'Books & Earning', status: 'LIVE', image: '01-study-sit-sweat-stretch-earn.jpg',
+          desc: 'Study, Sit, Sweat, Stretch, Prison Writings and Rojava War Diary—books and practical guides available through the store and newsletter.',
+          links: [
+            ['Browse the Payhip store', 'https://payhip.com/DanielAlanBaker', false],
+            ['Read on Substack', 'https://danielalanbaker.substack.com/', true]
+          ], gallery: ['01-study-sit-sweat-stretch-earn.jpg']
+        },
+        media: {
+          title: 'Origin Video / Media', status: 'LIVE', image: '03-youtube-media-earn.jpg',
+          desc: 'Start with the video profile by Emmett Doyle, then follow the wider body of media and documentary work.',
+          links: [['Watch the video profile', 'https://www.youtube.com/watch?v=_7H2LtxOOT8', false]],
+          gallery: ['03-youtube-media-earn.jpg']
+        },
+        path: {
+          title: 'Dan’s Path', status: 'LIVE', image: '10-dan-baker-skills-map.jpg',
+          desc: 'A skills map and growth path connecting practical abilities, lived experience, study, service and creative work.',
+          links: [
+            ['Read the long-form story', 'https://danielalanbaker.substack.com/p/the-radicalization-of-daniel-baker', false],
+            ['Find the book on Kindle', 'https://www.amazon.com/dp/B0HJ1C49KR?binding=kindle_edition&ref=dbs_dp_awt_sb_pc_tkin', true]
+          ], gallery: ['10-dan-baker-skills-map.jpg']
+        },
+        safe: {
+          title: 'Safe Passage', status: 'COMING SOON', image: '16-safest-option-7.jpg',
+          desc: 'A seven-part safety story about narrowing the lane, preserving evidence, avoiding the middle and keeping the human in charge.',
+          links: [], gallery: ['23-wargame-1of7-found-phone.jpg','22-mission-2of7-stay-out-of-middle.jpg','20-best-case-3.jpg','19-worst-case-4.jpg','24-worst-case-alt-4of7.jpg','18-moscow-rules-5.jpg','17-ai-middleman-6.jpg','16-safest-option-7.jpg','21-lesson-7of7-make-lane-smaller.jpg']
+        },
+        support: {
+          title: 'Support', status: 'LIVE', image: '05-investors-look-for.jpg',
+          desc: 'A practical way into the work: explore products available for purchase, support a finished release, or discuss a paid project role. Any contribution, ownership, or revenue share is agreed in writing before work begins; returns are never guaranteed.',
+          links: [
+            ['Support through the store', 'https://payhip.com/DanielAlanBaker', false],
+            ['Follow project updates', 'https://danielalanbaker.substack.com/', true]
+          ], gallery: ['05-investors-look-for.jpg']
+        }
+      };
+
+      function classForStatus(status) {
+        return status === 'LIVE' ? 'live' : status === 'SHIPS OCT 7' ? 'ships' : '';
+      }
+      function render() {
+        world.style.transform = 'translate3d(' + state.x + 'px,' + state.y + 'px,0) scale(' + state.scale + ')';
+      }
+      function clampScale(s) { return Math.max(.42, Math.min(1.75, s)); }
+      function clampPosition() {
+        var vw = viewport.clientWidth, vh = viewport.clientHeight;
+        var minX = Math.min(80, vw - WORLD_W * state.scale - 80);
+        var minY = Math.min(80, vh - WORLD_H * state.scale - 80);
+        state.x = Math.max(minX, Math.min(vw - 80, state.x));
+        state.y = Math.max(minY, Math.min(vh - 80, state.y));
+      }
+      function centerMap() {
+        var mobile = viewport.clientWidth < 680;
+        state.scale = mobile ? .7 : Math.min(.93, Math.max(.62, Math.min((viewport.clientWidth - 70) / WORLD_W, (viewport.clientHeight - 70) / WORLD_H)));
+        state.x = viewport.clientWidth / 2 - 840 * state.scale;
+        state.y = viewport.clientHeight / 2 - 580 * state.scale + (mobile ? 22 : 0);
+        clampPosition(); render();
+      }
+      function zoomAt(factor, cx, cy) {
+        var old = state.scale;
+        var next = clampScale(old * factor);
+        var wx = (cx - state.x) / old;
+        var wy = (cy - state.y) / old;
+        state.scale = next;
+        state.x = cx - wx * next;
+        state.y = cy - wy * next;
+        clampPosition(); render();
+      }
+      function openRegion(id) {
+        var r = regions[id]; if (!r) return;
+        lastFocus = document.activeElement;
+        var links = r.links.length ? '<div class="sheet-actions">' + r.links.map(function(link){
+          return '<a' + (link[2] ? ' class="secondary"' : '') + ' href="' + link[1] + '" target="_blank" rel="noopener noreferrer">' + link[0] + ' <span aria-hidden="true">↗</span></a>';
+        }).join('') + '</div>' : '<span class="empty-link">Public link pending.</span>';
+        var quote = r.quote ? '<p class="mission-quote">' + r.quote + '</p>' : '';
+        var gallery = r.gallery.length > 1 ? '<div class="gallery-wrap"><h3>Field notes</h3><div class="gallery">' + r.gallery.map(function(img){
+          var landscape = img === '09-llm-commune-network.jpg' || img === '06-comrade-relay-castle.jpg';
+          return '<img class="' + (landscape ? 'landscape' : '') + '" src="assets/' + img + '" alt="Project artwork: ' + img.replace(/\.jpg$/,'').replace(/^\d+-/,'').replace(/-/g,' ') + '">';
+        }).join('') + '</div></div>' : '';
+        sheetContent.innerHTML = '<div class="sheet-hero"><img class="sheet-image" src="assets/' + r.image + '" alt="Artwork for ' + r.title.replace(/"/g,'&quot;') + '"><div class="sheet-copy"><div class="sheet-meta"><span class="status-badge ' + classForStatus(r.status) + '">' + r.status + '</span></div><h2 id="sheetTitle">' + r.title + '</h2><p>' + r.desc + '</p>' + quote + links + '</div></div>' + gallery;
+        sheet.classList.add('open'); scrim.classList.add('open');
+        sheet.setAttribute('aria-hidden','false');
+        setTimeout(function(){ sheetClose.focus(); }, 40);
+      }
+      function closeSheet() {
+        sheet.classList.remove('open'); scrim.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
+        if (lastFocus && lastFocus.focus) lastFocus.focus();
+      }
+
+      document.querySelectorAll('.region').forEach(function(node){
+        node.addEventListener('click', function(){ openRegion(node.dataset.id); });
+      });
+      Object.keys(regions).forEach(function(id){
+        var r = regions[id];
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.innerHTML = '<span>' + r.title + '</span><small>' + r.status + '</small>';
+        btn.addEventListener('click', function(){ directory.hidden = true; directoryToggle.setAttribute('aria-expanded','false'); openRegion(id); });
+        directory.appendChild(btn);
+      });
+      directoryToggle.addEventListener('click', function(){
+        var willOpen = directory.hidden;
+        directory.hidden = !willOpen; directoryToggle.setAttribute('aria-expanded', String(willOpen));
+      });
+      document.getElementById('demoStart').addEventListener('click', function(){ openRegion('heart'); });
+      sheetClose.addEventListener('click', closeSheet); scrim.addEventListener('click', closeSheet);
+      document.getElementById('zoomIn').addEventListener('click', function(){ zoomAt(1.22, viewport.clientWidth/2, viewport.clientHeight/2); });
+      document.getElementById('zoomOut').addEventListener('click', function(){ zoomAt(.82, viewport.clientWidth/2, viewport.clientHeight/2); });
+      document.getElementById('fitMap').addEventListener('click', centerMap);
+
+      viewport.addEventListener('wheel', function(e){ e.preventDefault(); var rect = viewport.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.1 : .9, e.clientX - rect.left, e.clientY - rect.top); }, {passive:false});
+      viewport.addEventListener('pointerdown', function(e){
+        if (e.target.closest('.region')) return;
+        viewport.setPointerCapture(e.pointerId); pointers.set(e.pointerId, {x:e.clientX,y:e.clientY});
+        if (pointers.size === 1) { panStart = {x:e.clientX,y:e.clientY,ox:state.x,oy:state.y}; viewport.classList.add('dragging'); }
+        if (pointers.size === 2) {
+          var p = Array.from(pointers.values());
+          pinchStart = {dist:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), scale:state.scale, x:state.x, y:state.y, midX:(p[0].x+p[1].x)/2, midY:(p[0].y+p[1].y)/2};
+        }
+      });
+      viewport.addEventListener('pointermove', function(e){
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+        if (pointers.size === 1 && panStart) {
+          state.x = panStart.ox + e.clientX - panStart.x; state.y = panStart.oy + e.clientY - panStart.y;
+          clampPosition(); render();
+        } else if (pointers.size === 2 && pinchStart) {
+          var p = Array.from(pointers.values()); var dist = Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+          var next = clampScale(pinchStart.scale * dist / pinchStart.dist);
+          var wx = (pinchStart.midX - pinchStart.x) / pinchStart.scale;
+          var wy = (pinchStart.midY - pinchStart.y) / pinchStart.scale;
+          var mx = (p[0].x+p[1].x)/2, my = (p[0].y+p[1].y)/2;
+          state.scale = next; state.x = mx - wx*next; state.y = my - wy*next; clampPosition(); render();
+        }
+      });
+      function endPointer(e){ pointers.delete(e.pointerId); if (pointers.size < 2) pinchStart = null; if (!pointers.size){ panStart=null; viewport.classList.remove('dragging'); } }
+      viewport.addEventListener('pointerup', endPointer); viewport.addEventListener('pointercancel', endPointer);
+      viewport.addEventListener('keydown', function(e){
+        var moved = true;
+        if (e.key === 'ArrowLeft') state.x += 55;
+        else if (e.key === 'ArrowRight') state.x -= 55;
+        else if (e.key === 'ArrowUp') state.y += 55;
+        else if (e.key === 'ArrowDown') state.y -= 55;
+        else if (e.key === '+' || e.key === '=') zoomAt(1.15, viewport.clientWidth/2, viewport.clientHeight/2);
+        else if (e.key === '-') zoomAt(.87, viewport.clientWidth/2, viewport.clientHeight/2);
+        else moved = false;
+        if (moved) { e.preventDefault(); clampPosition(); render(); }
+      });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { if (sheet.classList.contains('open')) closeSheet(); else if (!directory.hidden) { directory.hidden=true; directoryToggle.setAttribute('aria-expanded','false'); } } });
+      window.addEventListener('resize', centerMap);
+      sheet.setAttribute('aria-hidden','true');
+      centerMap();
+    }());
+  </script>
+</body>
+</html>
